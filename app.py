@@ -17,6 +17,7 @@ if __name__ == '__main__':
     )
 
 st.title('Welcome to the AI-SRT Translator App!⚡')
+st.subheader("Created by: Leonardo Assunção")
 st.markdown(
         "Welcome to the AI-SRT Translator App! Drop your SRT or TXT file below, select the parameters desired on the left menu, and let the AI translate the subtitles for you!"
     )
