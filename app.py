@@ -20,7 +20,6 @@ st.subheader("Created by: Leonardo Assunção")
 st.markdown(
         "Simply drop your SRT or TXT file below, select the parameters on the left menu, and let the AI translate the subtitles for you!"
     )
-
 with st.sidebar:
     image("translator_icon.png", width=350)
     openai_key = st.text_input(label="Enter your OpenAI API key: [(click here to obtain a new key if you don't have one)](https://platform.openai.com/account/api-keys)",
