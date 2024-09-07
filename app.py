@@ -15,7 +15,6 @@ if __name__ == '__main__':
         layout="wide",
         initial_sidebar_state="auto",
     )
-
 st.title('Welcome to the AI-SRT Translator App!:clipboard:')
 st.subheader("Created by: Leonardo Assunção")
 st.markdown(
