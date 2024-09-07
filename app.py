@@ -22,7 +22,7 @@ st.markdown(
     )
 
 with st.sidebar:
-    image("translator_icon.png", width=400)
+    image("translator_icon.png", width=300)
     openai_key = st.text_input(label="Enter your OpenAI API key: [(click here to obtain a new key if you don't have one)](https://platform.openai.com/account/api-keys)",
                 type="password", help="Your API key is not stored anywhere")
     if openai_key:
