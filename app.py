@@ -227,10 +227,10 @@ def transcribe_audio_with_timestamp_continuity(audio_file_path, srt_file_path, s
             start_time_ms = end_time_ms  
 #####################################################################################
 
-st.markdown("<h2 style='text-align: left; color: #333;'>Translate your SRT file</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: left; color: #FFFAFA;'>Translate your SRT file</h2>", unsafe_allow_html=True)
 uploaded_file = st.file_uploader("Choose a SRT file", type=["srt", "txt"])
 
-st.markdown("<h2 style='text-align: left; color: #333;'>Generate subtitles for your audio file</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: left; color: #FFFAFA;'>Generate subtitles for your audio file</h2>", unsafe_allow_html=True)
 uploaded_file_2 = st.file_uploader("Choose an audio file", type=["mp3", "wav", "mp4", "m4a", "acc", "webm", "mpeg", "flac", "ogg"])
 
 if uploaded_file is not None:
