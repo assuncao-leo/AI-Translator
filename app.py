@@ -5,6 +5,8 @@ from openai import OpenAI
 from streamlit import image
 import os
 import tempfile
+from pydub import AudioSegment
+import re
 
 if __name__ == '__main__':
 
@@ -15,14 +17,15 @@ if __name__ == '__main__':
         layout="wide",
         initial_sidebar_state="auto",
     )
+
 st.title('Welcome to the AI-SRT Translator App!:clipboard:')
 st.subheader("Created by: Leonardo Assunção")
 st.markdown(
-        "Drop your SRT or TXT file below, select the parameters on the left menu, and let the AI translate the subtitles for you!"
+        "Simply drop your SRT or TXT file below, select the parameters desired on the left menu, and let the AI translate the subtitles for you!"
     )
 
 with st.sidebar:
-    image("translator_icon.png", width=350)
+    image("translator_icon.png", width=300)
     openai_key = st.text_input(label="Enter your OpenAI API key: [(click here to obtain a new key if you don't have one)](https://platform.openai.com/account/api-keys)",
                 type="password", help="Your API key is not stored anywhere")
     if openai_key:
@@ -74,7 +77,7 @@ with st.sidebar:
 def translate_text(text):
 
     model_name = llm_model
-    prompt=f"Translate the following {source_language} subtitle text to {target_language}, keeping the same language sentiment and specific currencies and personal names in the source language (i.e. money currencies, city names, etc), and converting English expressions to the equivalent of the output language (when applicable).The text is:\n\n{text}"
+    prompt=f"Your task is to translate the indicated {source_language} subtitle text to {target_language}, keeping the same language sentiment and specific currencies and personal names in the source language (i.e. money currencies, city names, etc), and converting English expressions to the equivalent of the output language (when applicable). Your output answer should contain ONLY the translated text, nothing else. The text is:\n\n{text}"
     response = client.chat.completions.create(
         model=model_name,
         max_tokens=None,
@@ -171,8 +174,64 @@ def translate_srt_file(temp_file_path, output_file_path, batch_size=30, max_char
 
         # write the translated and updated batch to the output file
         write_srt_file(output_file_path, updated_content + "\n\n", mode='a')
+################################################################################################  Audio functions ###################################################
+def format_time_srt(seconds):
+    """Convert seconds to SRT time format (hh:mm:ss,ms)."""
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    milliseconds = int((seconds - int(seconds)) * 1000)
+    return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02},{milliseconds:03}"
 
+def time_to_seconds(srt_time):
+    """Convert SRT time format (hh:mm:ss,ms) to seconds."""
+    hours, minutes, seconds, milliseconds = map(int, re.split('[:,]', srt_time))
+    return hours * 3600 + minutes * 60 + seconds + milliseconds / 1000
+
+def transcribe_audio_with_timestamp_continuity(audio_file_path, srt_file_path, segment_duration_sec=600):
+    audio = AudioSegment.from_file(audio_file_path)
+    segment_duration_ms = segment_duration_sec * 1000
+    with open(srt_file_path, 'w', encoding='utf-8') as srt_file:
+        idx = 1  # Global section number
+        start_time_ms = 0  # Start from the beginning of the audio
+        while start_time_ms < len(audio):
+            end_time_ms = min(start_time_ms + segment_duration_ms, len(audio))
+            segment = audio[start_time_ms:end_time_ms]
+            segment_file_path = "temp_segment.mp3"
+            segment.export(segment_file_path, format="mp3")
+
+            with open(segment_file_path, "rb") as audio_file:
+                try:
+                    transcription_response = client.audio.transcriptions.create(
+                        model="whisper-1",
+                        file=audio_file,
+                        response_format="srt"
+                    )
+                except Exception as e:
+                    raise ValueError(f"Failed to transcribe audio: {e}")
+
+            for line in transcription_response.splitlines():
+                if "-->" in line:  
+                    start_srt_time, end_srt_time = line.split(" --> ")
+                    start_seconds = time_to_seconds(start_srt_time)
+                    end_seconds = time_to_seconds(end_srt_time)
+
+                    adjusted_start_time = start_time_ms / 1000 + start_seconds
+                    adjusted_end_time = start_time_ms / 1000 + end_seconds
+
+                    srt_file.write(f"{idx}\n")  
+                    srt_file.write(f"{format_time_srt(adjusted_start_time)} --> {format_time_srt(adjusted_end_time)}\n")
+                    idx += 1
+                elif not line.isdigit():  
+                    srt_file.write(line + "\n")
+
+            start_time_ms = end_time_ms  
+#####################################################################################
+
+st.markdown("<h2 style='text-align: left; color: #333;'>Translate your SRT file</h2>", unsafe_allow_html=True)
 uploaded_file = st.file_uploader("Choose a SRT file", type=["srt", "txt"])
+
+st.markdown("<h2 style='text-align: left; color: #333;'>Generate subtitles for your audio file</h2>", unsafe_allow_html=True)
+uploaded_file_2 = st.file_uploader("Choose an audio file", type=["mp3", "wav", "mp4", "m4a", "acc", "webm", "mpeg", "flac", "ogg"])
 
 if uploaded_file is not None:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".srt") as tmp_file:
@@ -191,7 +250,7 @@ if uploaded_file is not None:
                         translate = translate_srt_file(temp_file_path, output_file_path)
                         with open(output_file_path, 'rb') as file:
                             st.session_state['file_data'] = file.read()
-                        st.success('Translation is completed!', icon='✅') 
+                        st.success('Translation is completed!', icon='✅')
                     except openai.RateLimitError as e:
                         st.markdown(
                             "It looks like you do not have OpenAI API credits left. Check [OpenAI's usage webpage for more information](https://platform.openai.com/account/usage)"
@@ -205,7 +264,7 @@ if uploaded_file is not None:
                         st.write(e)
                     except Exception as e:
                         st.write(f"An error occurred while translating the file: {e}")
-                
+
 if 'file_data' in st.session_state:
     st.download_button(
         label="Download Translated File",
@@ -214,3 +273,49 @@ if 'file_data' in st.session_state:
         mime="text/plain"
     )
 
+### audio button
+if uploaded_file_2 is not None:
+    audio_file_path = uploaded_file_2
+    st.success('audio file loaded successfully!', icon='✅')
+    generate_button = st.button("Generate SRT file with Subtitles")
+
+    if generate_button:
+            if not openai_key:
+              st.error("API key is missing. Please insert your API key before proceeding.")
+            else:
+                with st.spinner("Generating the SRT file. It could take a few minutes."):
+                    srt_file_path = 'output_audio_srt.srt'
+                    try:
+                        transcribe_audio_with_timestamp_continuity(audio_file_path, srt_file_path, segment_duration_sec=600)
+                        output_file_path = 'translated_file.srt'
+              
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=".srt") as tmp_file:
+                            with open(srt_file_path, 'r', encoding='utf-8') as srt_file:
+                                srt_content = srt_file.read()
+                            tmp_file.write(srt_content.encode('utf-8'))
+                            temp_file_path = tmp_file.name
+                        translate = translate_srt_file(temp_file_path, output_file_path)
+
+                        with open(output_file_path, 'rb') as file:
+                           st.session_state['file_data_2'] = file.read()
+                        st.success('Your SRT file has been generated successfully!', icon='✅')
+                    except openai.RateLimitError as e:
+                        st.markdown(
+                            "It looks like you do not have OpenAI API credits left. Check [OpenAI's usage webpage for more information](https://platform.openai.com/account/usage)"
+                        )
+                        st.write(e)
+                    except openai.NotFoundError as e:
+                        st.warning(
+                            "It looks like you do not have entered you Credit Card information on OpenAI's site. Buy pre-paid credits to use the API and try again.",
+                            icon="💳"
+                        )
+                        st.write(e)
+                    except Exception as e:
+                        st.write(f"An error occurred while translating the file: {e}")
+if 'file_data_2' in st.session_state:
+    st.download_button(
+        label="Download SRT File",
+        data=st.session_state['file_data_2'],
+        file_name="subtitles_file.srt",
+        mime="text/plain"
+      )
