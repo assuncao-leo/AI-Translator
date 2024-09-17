@@ -282,7 +282,7 @@ if 'file_data' in st.session_state:
     st.download_button(
         label="Download Translated File",
         data=st.session_state['file_data'],
-        file_name="translated_file.srt",
+        file_name=f"translated_file_{target_language}.srt",
         mime="text/plain"
     )
 
@@ -300,15 +300,15 @@ if uploaded_file_2 is not None:
                     try:
                         edit = edit_srt_file(temp_file_path, output_file_path)
                         with open(output_file_path, 'rb') as file:
-                            st.session_state['file_data'] = file.read()
+                            st.session_state['file_data_2'] = file.read()
                         st.success('Editing is completed!', icon='✅')
                     except Exception as e:
                         st.write(f"An error occurred while editing the file: {e}")
 
-if 'file_data' in st.session_state:
+if 'file_data_2' in st.session_state:
     st.download_button(
         label="Download Edited File",
-        data=st.session_state['file_data'],
+        data=st.session_state['file_data_2'],
         file_name="edited_file.srt",
         mime="text/plain"
     )
@@ -337,7 +337,7 @@ if uploaded_file_3 is not None:
                         translate = translate_srt_file(temp_file_path, output_file_path)
 
                         with open(output_file_path, 'rb') as file:
-                           st.session_state['file_data_2'] = file.read()
+                           st.session_state['file_data_3'] = file.read()
                         st.success('Your SRT file has been generated successfully!', icon='✅')
                     except openai.RateLimitError as e:
                         st.markdown(
@@ -352,10 +352,10 @@ if uploaded_file_3 is not None:
                         st.write(e)
                     except Exception as e:
                         st.write(f"An error occurred while translating the file: {e}")
-if 'file_data_2' in st.session_state:
+if 'file_data_3' in st.session_state:
     st.download_button(
         label="Download SRT File",
-        data=st.session_state['file_data_2'],
-        file_name="subtitles_file.srt",
+        data=st.session_state['file_data_3'],
+        file_name=f"subtitles_file_{target_language}.srt",
         mime="text/plain"
       )
