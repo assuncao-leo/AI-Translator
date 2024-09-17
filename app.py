@@ -19,7 +19,7 @@ if __name__ == '__main__':
     )
 
 st.title('Welcome to the AI-SRT Translator App!:clipboard:')
-st.subheader("Created by: Leonardo Assunção")
+st.markdown('<h4>Created by: <a href="https://github.com/assuncao-leo" target="_blank">Leonardo Assunção</a></h4>', unsafe_allow_html=True)
 st.markdown(
         "Simply drop your SRT or TXT file below, select the parameters desired on the left menu, and let the AI translate the subtitles for you!"
     )
@@ -174,6 +174,16 @@ def translate_srt_file(temp_file_path, output_file_path, batch_size=30, max_char
 
         # write the translated and updated batch to the output file
         write_srt_file(output_file_path, updated_content + "\n\n", mode='a')
+
+################################################################################################ Editing functions ###################################################
+def edit_srt_file(temp_file_path, output_file_path, max_chars_per_line=char_per_line, max_lines_per_section=lines_per_section):
+    edited_content = read_srt_file(temp_file_path)
+    updated_content = enforce_srt_rules(edited_content, max_chars_per_line, max_lines_per_section)
+
+        # write the translated and updated batch to the output file
+    write_srt_file(output_file_path, updated_content + "\n\n", mode='w')
+    return edited_content
+
 ################################################################################################  Audio functions ###################################################
 def format_time_srt(seconds):
     """Convert seconds to SRT time format (hh:mm:ss,ms)."""
@@ -230,8 +240,11 @@ def transcribe_audio_with_timestamp_continuity(audio_file_path, srt_file_path, s
 st.markdown("<h2 style='text-align: left; color: #FFFAFA;'>Translate your SRT file</h2>", unsafe_allow_html=True)
 uploaded_file = st.file_uploader("Choose a SRT file", type=["srt", "txt"])
 
+st.markdown("<h2 style='text-align: left; color: #FFFAFA;'>Edit your SRT file</h2>", unsafe_allow_html=True)
+uploaded_file_2 = st.file_uploader("Choose the SRT file you want to edit (no API key needed)", type=["srt", "txt"])
+
 st.markdown("<h2 style='text-align: left; color: #FFFAFA;'>Generate subtitles for your audio file</h2>", unsafe_allow_html=True)
-uploaded_file_2 = st.file_uploader("Choose an audio file", type=["mp3", "wav", "mp4", "m4a", "acc", "webm", "mpeg", "flac", "ogg"])
+uploaded_file_3 = st.file_uploader("Choose an audio file", type=["mp3", "wav", "mp4", "m4a", "acc", "webm", "mpeg", "flac", "ogg"])
 
 if uploaded_file is not None:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".srt") as tmp_file:
@@ -273,9 +286,36 @@ if 'file_data' in st.session_state:
         mime="text/plain"
     )
 
-### audio button
+### Editing button 
 if uploaded_file_2 is not None:
-    audio_file_path = uploaded_file_2
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".srt") as tmp_file:
+        tmp_file.write(uploaded_file_2.getvalue())
+        temp_file_path = tmp_file.name
+    st.success('SRT file loaded successfully!', icon='✅')
+    generate_button = st.button("Edit Subtitles")
+
+    if generate_button:
+                with st.spinner("Editing the subtitles. It could take a few minutes."):
+                    output_file_path = 'edited_file.srt'
+                    try:
+                        edit = edit_srt_file(temp_file_path, output_file_path)
+                        with open(output_file_path, 'rb') as file:
+                            st.session_state['file_data'] = file.read()
+                        st.success('Editing is completed!', icon='✅')
+                    except Exception as e:
+                        st.write(f"An error occurred while editing the file: {e}")
+
+if 'file_data' in st.session_state:
+    st.download_button(
+        label="Download Edited File",
+        data=st.session_state['file_data'],
+        file_name="edited_file.srt",
+        mime="text/plain"
+    )
+
+### audio button
+if uploaded_file_3 is not None:
+    audio_file_path = uploaded_file_3
     st.success('audio file loaded successfully!', icon='✅')
     generate_button = st.button("Generate SRT file with Subtitles")
 
